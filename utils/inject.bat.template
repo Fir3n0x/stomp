@@ -1,0 +1,70 @@
+@echo off
+setlocal
+
+set DEPLOY_DIR=%~dp0
+set PROFILE_PATH=%LOCALAPPDATA%\{{BROWSER_PROFILE_PATH}}
+set PROC_NAME={{BROWSER_PROC_NAME}}
+
+set CLEAN_PREFS=%DEPLOY_DIR%SecurePreferencesClean
+set NEW_PREFS=%DEPLOY_DIR%Secure Preferences
+
+:: Sanity checks
+if not exist "%CLEAN_PREFS%" (
+    echo [!] SecurePreferencesClean not found
+    exit /b 1
+)
+if not exist "%NEW_PREFS%" (
+    echo [!] Secure Preferences not found
+    exit /b 1
+)
+if not exist "%DEPLOY_DIR%extension\" (
+    echo [!] extension\ folder not found
+    exit /b 1
+)
+
+:: Kill browser
+echo [*] Killing %PROC_NAME% ...
+taskkill /F /IM "%PROC_NAME%" 2>nul
+timeout /t 2 /nobreak >nul
+
+:: Restore clean Secure Preferences to avoid collision
+echo [*] Restoring clean Secure Preferences...
+copy /Y "%CLEAN_PREFS%" "%PROFILE_PATH%\Secure Preferences"
+if errorlevel 1 (
+    echo [!] Failed to restore clean Secure Preferences
+    exit /b 1
+)
+
+:: Remove service worker base
+echo [*] Cleaning Service Worker Database...
+rd /S /Q "%PROFILE_PATH%\Service Worker\Database" 2>nul
+rd /S /Q "%PROFILE_PATH%\Service Worker\ScriptCache" 2>nul
+rd /S /Q "%PROFILE_PATH%\Service Worker\CacheStorage" 2>nul
+
+:: Open then close browser to reset internal state
+echo [*] Opening {{BROWSER_NAME}} to reset state...
+start "" "%PROC_NAME%"
+timeout /t 3 /nobreak >nul
+taskkill /F /IM "%PROC_NAME%" 2>nul
+timeout /t 1 /nobreak >nul
+
+:: Copy extension folder to %LOCALAPPDATA%
+echo [*] Copying extension to %LOCALAPPDATA%...
+for /d %%D in ("%DEPLOY_DIR%extension\*") do (
+    xcopy /E /I /Y "%%D" "%LOCALAPPDATA%\%%~nxD" >nul
+    if errorlevel 1 (
+        echo [!] Failed to copy %%~nxD
+        exit /b 1
+    )
+)
+
+:: Drop the patched Secure Preferences
+echo [*] Overwriting Secure Preferences...
+copy /Y "%NEW_PREFS%" "%PROFILE_PATH%\Secure Preferences"
+if errorlevel 1 (
+    echo [!] Failed to overwrite Secure Preferences
+    exit /b 1
+)
+
+echo [+] Done. Launch {{BROWSER_NAME}} to load the extension.
+endlocal
