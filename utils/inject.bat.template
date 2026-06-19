@@ -36,7 +36,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Remove service worker base
+:: Remove service worker base - uncomment to remove service worker cache at each injection - keep commented to perform gap vuln
 :: echo [*] Cleaning Service Worker Database...
 :: rd /S /Q "%PROFILE_PATH%\Service Worker\Database" 2>nul
 :: rd /S /Q "%PROFILE_PATH%\Service Worker\ScriptCache" 2>nul
