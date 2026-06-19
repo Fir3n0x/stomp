@@ -31,17 +31,37 @@ BROWSER_TO_STORE: dict[str, str] = {
 RSA_OID = b"\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01"
 
 
-# CRX Download
-def download_crx(ext_id: str, browser: str = "edge") -> tuple[bytes, str] | tuple[None, None]:
+# CRX Download with proxy support
+def download_crx(ext_id: str, browser: str = "edge", proxy: str = None) -> tuple[bytes, str] | tuple[None, None]:
     url = BROWSER_TO_STORE[browser].format(ext_id=ext_id)
     print(f"[*] Downloading CRX for {ext_id} …")
     print(f"[*]   URL: {url}")
+    
+    if proxy:
+        print(f"[*]   Using proxy: {proxy}")
+    
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = resp.read()
-            print(f"[+] CRX downloaded ({len(data)} bytes)")
-            return data, url
+
+        # configure proxy if provided
+        if proxy:
+            proxy_handler = urllib.request.ProxyHandler({
+                'http': proxy,
+                'https': proxy
+            })
+
+            opener = urllib.request.build_opener(proxy_handler)
+            with opener.open(req, timeout=15) as resp:
+                data = resp.read()
+                print(f"[+] CRX downloaded ({len(data)} bytes)")
+                return data, url
+        else:
+            # use default handler if no proxy
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = resp.read()
+                print(f"[+] CRX downloaded ({len(data)} bytes)")
+                return data, url
+
     except urllib.error.HTTPError as e:
         print(f"[-] HTTP {e.code}")
     except Exception as e:
@@ -172,8 +192,8 @@ def key_to_crx_id(key_bytes: bytes) -> str:
 
 
 # Public API
-def get_public_key_for_id(ext_id: str, browser: str = "edge") -> str | None:
-    crx_data, _ = download_crx(ext_id, browser)
+def get_public_key_for_id(ext_id: str, browser: str = "edge", proxy: str = None) -> str | None:
+    crx_data, _ = download_crx(ext_id, browser, proxy=proxy)
     if not crx_data:
         return None
 
