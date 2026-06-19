@@ -109,7 +109,7 @@ def package(
             f.write(spf_bytes)
  
         # inject.bat
-        bat_content = render_inject_bat(cfg)
+        bat_content = render_inject_bat(cfg, target_dir)
         if bat_content:
             with open(os.path.join(tmp, "inject.bat"), "w", encoding="utf-8") as f:
                 f.write(bat_content)
@@ -148,7 +148,7 @@ def package(
     return final_zip
 
 
-def render_inject_bat(cfg) -> str:
+def render_inject_bat(cfg, target_dir) -> str:
     """
     Read inject.bat.template and replace placeholders according to targeted BrowserConfig
     du BrowserConfig ciblé.
@@ -163,5 +163,6 @@ def render_inject_bat(cfg) -> str:
     content = content.replace("{{BROWSER_NAME}}", cfg.name)
     content = content.replace("{{BROWSER_PROC_NAME}}", cfg.proc_name)
     content = content.replace("{{BROWSER_PROFILE_PATH}}", cfg.profile_path)
+    content = content.replace("{{BROWSER_TARGET_DIR}}", target_dir)
  
     return content
