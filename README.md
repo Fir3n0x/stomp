@@ -66,6 +66,28 @@ python3 stomp.py EXTENSION_FOLDER/ \
 
 Whitelisted IDs are visible at `edge://policy` or `chrome://policy`.
 
+### GPO bypass with corporate proxy (`--proxy`)
+
+If you are behind a corporate proxy and cannot access the extension store directly, use `--proxy` to route the CRX download through your proxy:
+
+```bash
+python3 stomp.py EXTENSION_FOLDER/ \
+  --spoof <whitelisted_extension_id> \
+  --proxy http://proxy.corp.com:8080 \
+  --prefs-file SecurePreferences \
+  --sid "S-1-5-21-XXX-XXX-XXX-XXX" \
+  --target-dir "C:\\Users\\<user>\\AppData\\Local"
+```
+
+The `--proxy` parameter accepts standard HTTP/HTTPS proxy URLs:
+- Basic: `http://proxy.corp.com:8080`
+- With authentication: `http://username:password@proxy.corp.com:8080`
+
+**Note:** If you receive a DNS resolution error (`[Errno 11001] getaddrinfo failed`) when running `--spoof`, it likely means your machine is behind a proxy. Check your proxy settings with:
+```bash
+netsh winhttp show proxy
+```
+
 ### Options
 
 | Option | Description |
@@ -74,6 +96,7 @@ Whitelisted IDs are visible at `edge://policy` or `chrome://policy`.
 | `--sid` | Target user's SID (`whoami /user`) |
 | `--target-dir` | Directory where the extension folder will be placed |
 | `--spoof <ID>` | Spoof a whitelisted extension ID from the store |
+| `--proxy <URL>` | HTTP/HTTPS proxy URL for downloading CRX (e.g. `http://proxy.corp.com:8080`) |
 | `--browser` | Specified a browser (edge, chrome, brave, vivaldi), default=edge |
 
 ---
@@ -123,6 +146,7 @@ For GPO bypass, `stomp` automatically injects the correct `key` field in `manife
 - **Initial access required** - stomp must be executed in the context of the target user
 - **Extension folder visible on disk** - baseline injection leaves an artifact in `%LOCALAPPDATA%`
 - **SID required** - needed to compute a valid HMAC
+- **Proxy support** - Only HTTP/HTTPS proxies are supported; SOCKS proxies are not supported by `urllib.request`
 
 ---
 
