@@ -65,7 +65,7 @@ def build_secure_preferences(
     crx_id: str,
     deploy_path: str,
     manifest: dict,
-    sid: str,
+    device_id: str,
     browser_id: str,
 ) -> bytes:
     """
@@ -99,13 +99,13 @@ def build_secure_preferences(
  
     # __ Extension HMAC __________________________________________________
     ext_path = f"extensions.settings.{crx_id}"
-    ext_mac = calculate_hmac(ext_entry, ext_path, sid, seed)
+    ext_mac = calculate_hmac(ext_entry, ext_path, device_id, seed)
     data["protection"]["macs"]["extensions"]["settings"][crx_id] = ext_mac
     print(f"    ext MAC  : {ext_mac}")
  
     # __ Developer-mode HMAC __________________________________________________
     dev_path = "extensions.ui.developer_mode"
-    dev_mac = calculate_hmac(True, dev_path, sid, seed)
+    dev_mac = calculate_hmac(True, dev_path, device_id, seed)
     print(f"    dev MAC  : {dev_mac}")
 
     if "extensions" not in data["protection"]["macs"]:
@@ -126,7 +126,7 @@ def build_secure_preferences(
     _chrome_cleanup(data)
  
     # __ Super-MAC __________________________________________________
-    supermac = calc_supermac(data, sid, seed)
+    supermac = calc_supermac(data, device_id, seed)
     data["protection"]["super_mac"] = supermac
     print(f"    super MAC: {supermac}")
  

