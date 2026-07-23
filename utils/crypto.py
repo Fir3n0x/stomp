@@ -85,24 +85,38 @@ def _remove_empty(d):
         d[:] = [i for i in d if i or i in (False, 0)]
  
  
-def calculate_hmac(value, path: str, sid: str, seed: bytes) -> str:
+def calculate_hmac(value, path: str, sid_or_uuid: str, seed: bytes) -> str:
     if isinstance(value, dict):
         _remove_empty(value)
 
     json_value = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
     json_value = json_value.replace("<", "\\u003C").replace("\\u2122", "™")
 
-    sid = "-".join(sid.split("-")[:-1])  # strip RID
+    # If SID Windows (start with S-1-...), remove RID
+    if sid_or_uuid.startswith("S-1-"):
+        device_id = "-".join(sid_or_uuid.split("-")[:-1])  # strip RID
 
-    message = sid + path + json_value
+    # If macOS (Hardware UUID) or Linux (Machine ID), keep all the value 
+    else:
+        device_id = sid_or_uuid.strip()
+
+    # Build msg for HMAC-SHA256
+    message = device_id + path + json_value
     h = hmac.new(seed, message.encode("utf-8"), hashlib.sha256)
     return h.hexdigest().upper()
 
 
-def calc_supermac(data: dict, sid: str, seed: bytes) -> str:
-    sid = "-".join(sid.split("-")[:-1])  # strip RID
+def calc_supermac(data: dict, sid_or_uuid: str, seed: bytes) -> str:
+    
+    # If SID Windows (start with S-1-...), remove RID
+    if sid_or_uuid.startswith("S-1-"):
+        device_id = "-".join(sid_or_uuid.split("-")[:-1])  # strip RID
+
+    # If macOS (Hardware UUID) or Linux (Machine ID), keep all the value 
+    else:
+        device_id = sid_or_uuid.strip()
 
     macs_json = json.dumps(data["protection"]["macs"], separators=(",", ":"))
-    super_msg = sid + macs_json
+    super_msg = device_id + macs_json
     h = hmac.new(seed, super_msg.encode("utf-8"), hashlib.sha256)
     return h.hexdigest().upper()

@@ -2,13 +2,14 @@
 
 > Inject browser extensions into Chromium-based browsers without the store - with GPO bypass support.
 
-A red team tool for persistent browser-based agent deployment.
+A red team tool for persistent browser-based agent deployment.  
+Supports **Windows**, **Linux** and **macOS** targets.
 
 ---
 
 ## How It Works
 
-Chromium browsers store their configuration, including installed extensions, in a `Secure Preferences` file signed with an HMAC. `stomp.py` generates a valid replacement file that registers an arbitrary extension, with a correctly computed HMAC derived from the target user's SID.
+Chromium browsers store their configuration, including installed extensions, in a `Secure Preferences` file signed with an HMAC. `stomp.py` generates a valid replacement file that registers an arbitrary extension, with a correctly computed HMAC derived from the target user's SID for Windows or hardware UUID for macOS.
 
 On next browser launch, the extension is loaded silently, no store, no warning dialog, no user interaction required.
 
@@ -36,7 +37,7 @@ pip install -r requirements.txt
 
 - Python 3.8+
 - Target's current `Secure Preferences` file
-- Target user's SID (`whoami /user`)
+- Target user's SID (`whoami /user` on Windows)
 
 ---
 
@@ -45,12 +46,36 @@ pip install -r requirements.txt
 ### Basic injection
 
 ```bash
+# Windows target
 python3 stomp.py EXTENSION_FOLDER/ \
+  --platform windows \
   --prefs-file SecurePreferences \
-  --sid "S-1-5-21-XXX-XXX-XXX-XXX" \
-  --target-dir "C:\\Users\\<user>\\AppData\\Local"
+  --device-id "S-1-5-21-XXX-XXX-XXX-XXX" \
+  --target-dir "C:\\Users\\<user>\\AppData\\Local" \
   --browser edge
+
+# macOS target
+python3 stomp.py EXTENSION_FOLDER/ \
+  --platform darwin \
+  --prefs-file SecurePreferences \
+  --device-id "S-1-5-21-XXX-XXX-XXX-XXX" \
+  --target-dir "/Users/<user>/Library/Application Support" \
+  --browser chrome
+
+# Linux target
+python3 stomp.py EXTENSION_FOLDER/ \
+  --platform linux \
+  --prefs-file SecurePreferences \
+  --device-id "S-1-5-21-XXX-XXX-XXX-XXX" \
+  --target-dir "/home/<user>/.config" \
+  --browser brave
 ```
+
+The `--platform` flag tells `stomp.py` which OS the deployment targets. It adapts:
+- **Path separators** — backslashes for Windows, forward slashes for Linux/macOS
+- **Browser profile paths** — `AppData\Local\...` vs `Library/Application Support/...` vs `.config/...`
+- **Process names** — `chrome.exe` vs `Google Chrome` vs `google-chrome`
+- **Injection script** — `inject.bat` on Windows, `inject.sh` on Linux/macOS
 
 ### GPO allowlist bypass (`--spoof`)
 
@@ -59,8 +84,9 @@ If the target environment restricts extensions to a GPO whitelist, use `--spoof`
 ```bash
 python3 stomp.py EXTENSION_FOLDER/ \
   --spoof <whitelisted_extension_id> \
+  --platform windows \
   --prefs-file SecurePreferences \
-  --sid "S-1-5-21-XXX-XXX-XXX-XXX" \
+  --device-id "S-1-5-21-XXX-XXX-XXX-XXX" \
   --target-dir "C:\\Users\\<user>\\AppData\\Local"
 ```
 
@@ -74,8 +100,9 @@ If you are behind a corporate proxy and cannot access the extension store direct
 python3 stomp.py EXTENSION_FOLDER/ \
   --spoof <whitelisted_extension_id> \
   --proxy http://proxy.corp.com:8080 \
+  --platform windows \
   --prefs-file SecurePreferences \
-  --sid "S-1-5-21-XXX-XXX-XXX-XXX" \
+  --device-id "S-1-5-21-XXX-XXX-XXX-XXX" \
   --target-dir "C:\\Users\\<user>\\AppData\\Local"
 ```
 
@@ -93,11 +120,14 @@ netsh winhttp show proxy
 | Option | Description |
 |--------|-------------|
 | `--prefs-file` | Path to the target's current `Secure Preferences` |
-| `--sid` | Target user's SID (`whoami /user`) |
-| `--target-dir` | Directory where the extension folder will be placed |
+| `--device-id` | Target user's SID (`whoami /user`) / Target user's UUID (`system_profiler SPHardwareDataType`) |
+| `--target-dir` | Deployment root directory on the target machine |
+| `--platform` | Target OS: `windows`, `linux`, or `darwin` (default: `windows`) |
 | `--spoof <ID>` | Spoof a whitelisted extension ID from the store |
 | `--proxy <URL>` | HTTP/HTTPS proxy URL for downloading CRX (e.g. `http://proxy.corp.com:8080`) |
-| `--browser` | Specified a browser (edge, chrome, brave, vivaldi), default=edge |
+| `--browser` | Target browser: `chrome`, `edge`, `brave`, `vivaldi` (default: `edge`) |
+| `--output` | Output directory for the deployment ZIP (default: current directory) |
+| `--debug` | Enable verbose debug output |
 
 ---
 
@@ -109,19 +139,28 @@ stomp generates a deployment-ready ZIP archive:
 output.zip
 ├── extension/              # Extension folder, ready to copy
 ├── info.json               # Extension metadata and deployment info
-├── inject.bat              # Automated deployment script
+├── inject.bat              # Windows deployment script (or inject.sh on Linux/macOS)
 ├── Secure Preferences      # Generated Secure Preferences (Edge, Chrome, Brave)
 └── SecurePreferencesClean  # Backup of the original Secure Preferences
 ```
 
-Transfer the ZIP to the target machine and execute `inject.bat`.
-The script handles the full deployment sequence:
+Transfer the ZIP to the target machine and execute the injection script (`inject.bat` on Windows, `inject.sh` on Linux/macOS). The script handles the full deployment sequence:
 
 1. Kill any running browser instance
 2. Restore clean `Secure Preferences` to avoid state collisions
 3. Open and close the browser to reset internal state
-4. Copy the extension folder to `%LOCALAPPDATA%`
+4. Copy the extension folder to the target directory
 5. Overwrite `Secure Preferences` with the generated file
+
+### Platform-specific paths
+
+Browser profile paths are automatically adapted to the target OS:
+
+| OS | Chrome profile root | Browser process |
+|---|---|---|
+| Windows | `%LOCALAPPDATA%\Google\Chrome\User Data\Default` | `chrome.exe` |
+| macOS | `~/Library/Application Support/Google/Chrome/Default` | `Google Chrome` |
+| Linux | `~/.config/google-chrome/Default` | `google-chrome` |
 
 ---
 
@@ -141,11 +180,25 @@ For GPO bypass, `stomp` automatically injects the correct `key` field in `manife
 
 ---
 
+## Injection Templates
+
+Two templates control the on-target deployment script:
+
+| File | Platform | Status |
+|------|----------|--------|
+| `utils/inject.bat.template` | Windows | ✅ Ready |
+| `utils/inject.sh.template` | Linux / macOS | 🚧 To be created |
+
+When the template for the requested platform is missing, `stomp.py` skips script generation with a clear warning — all other ZIP contents are still produced.
+
+---
+
 ## Limitations
 
 - **Initial access required** - stomp must be executed in the context of the target user
-- **Extension folder visible on disk** - baseline injection leaves an artifact in `%LOCALAPPDATA%`
-- **SID required** - needed to compute a valid HMAC
+- **Extension folder visible on disk** - baseline injection leaves an artifact on the target filesystem
+- **SID/UUID required** - needed to compute a valid HMAC
+- **Linux/macOS injection script** - the `inject.sh.template` is not yet implemented; deployment must be done manually on these platforms for now
 - **Proxy support** - Only HTTP/HTTPS proxies are supported; SOCKS proxies are not supported by `urllib.request`
 
 ---
