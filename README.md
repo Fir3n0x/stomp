@@ -184,12 +184,15 @@ For GPO bypass, `stomp` automatically injects the correct `key` field in `manife
 
 Two templates control the on-target deployment script:
 
+Each target OS has its own template — paths, process control (`taskkill`/`pkill`) and browser launch (`start`/`open`/binary) differ:
+
 | File | Platform | Status |
 |------|----------|--------|
 | `utils/inject.bat.template` | Windows | ✅ Ready |
-| `utils/inject.sh.template` | Linux / macOS | 🚧 To be created |
+| `utils/inject.darwin.sh.template` | macOS | ✅ Ready |
+| `utils/inject.linux.sh.template` | Linux | ✅ Ready |
 
-When the template for the requested platform is missing, `stomp.py` skips script generation with a clear warning — all other ZIP contents are still produced.
+The generated script is always named `inject.bat` (Windows) or `inject.sh` (macOS/Linux) inside the ZIP. When the template for the requested platform is missing, `stomp.py` skips script generation with a clear warning — all other ZIP contents are still produced.
 
 ---
 
@@ -197,8 +200,8 @@ When the template for the requested platform is missing, `stomp.py` skips script
 
 - **Initial access required** - stomp must be executed in the context of the target user
 - **Extension folder visible on disk** - baseline injection leaves an artifact on the target filesystem
-- **SID/UUID required** - needed to compute a valid HMAC
-- **Linux/macOS injection script** - the `inject.sh.template` is not yet implemented; deployment must be done manually on these platforms for now
+- **SID/UUID required** - needed to compute a valid HMAC (Windows SID / macOS Hardware UUID)
+- **State-reset step needs a session** - `inject.sh`/`inject.bat` briefly launch the browser to reset its internal state, so they run in the target user's interactive session
 - **Proxy support** - Only HTTP/HTTPS proxies are supported; SOCKS proxies are not supported by `urllib.request`
 
 ---
