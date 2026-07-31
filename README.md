@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 - Python 3.8+
 - Target's current `Secure Preferences` file
-- Target user's SID (`whoami /user` on Windows)
+- Target user's SID/UUID (`whoami /user` SID on Windows, `system_profiler SPHardwareDataType` UUID on Darwin)
 
 ---
 
