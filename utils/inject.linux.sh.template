@@ -11,6 +11,17 @@ BROWSER_TARGET_DIR="{{BROWSER_TARGET_DIR}}"
 CLEAN_PREFS="$DEPLOY_DIR/SecurePreferencesClean"
 NEW_PREFS="$DEPLOY_DIR/Secure Preferences"
 
+# Force-kill the browser and wait until every process is gone. SIGKILL (-9) is
+# mandatory: on SIGTERM the browser shuts down gracefully and REWRITES Secure
+# Preferences on the way out, which races with (and clobbers) our patched drop.
+kill_browser() {
+    pkill -9 -f "$PROC_NAME" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+        pgrep -f "$PROC_NAME" >/dev/null 2>&1 || return 0
+        sleep 0.5
+    done
+}
+
 # Sanity checks
 [ -f "$CLEAN_PREFS" ]          || { echo "[!] SecurePreferencesClean not found"; exit 1; }
 [ -f "$NEW_PREFS" ]            || { echo "[!] Secure Preferences not found"; exit 1; }
@@ -19,10 +30,9 @@ NEW_PREFS="$DEPLOY_DIR/Secure Preferences"
 
 # Kill browser
 echo "[*] Killing $PROC_NAME ..."
-pkill -f "$PROC_NAME" 2>/dev/null || true
-sleep 2
+kill_browser
 
-# Restore clean Secure Preferences to avoid collision ───────
+# Restore clean Secure Preferences to avoid collision
 echo "[*] Restoring clean Secure Preferences..."
 cp -f "$CLEAN_PREFS" "$PROFILE_PATH/Secure Preferences" || { echo "[!] Failed to restore clean Secure Preferences"; exit 1; }
 
@@ -37,8 +47,7 @@ cp -f "$CLEAN_PREFS" "$PROFILE_PATH/Secure Preferences" || { echo "[!] Failed to
 echo "[*] Opening {{BROWSER_NAME}} to reset state..."
 ("$PROC_NAME" >/dev/null 2>&1 &) || true
 sleep 3
-pkill -f "$PROC_NAME" 2>/dev/null || true
-sleep 1
+kill_browser
 
 # Copy extension folder(s) to the browser target dir
 echo "[*] Copying extension to $BROWSER_TARGET_DIR..."
@@ -50,7 +59,7 @@ for d in "$DEPLOY_DIR/extension"/*/; do
     cp -R "${d%/}" "$BROWSER_TARGET_DIR/" || { echo "[!] Failed to copy $name"; exit 1; }
 done
 
-# Drop the patched Secure Preferences
+# Drop the patched Secure Preferences (browser is dead now)
 echo "[*] Overwriting Secure Preferences..."
 cp -f "$NEW_PREFS" "$PROFILE_PATH/Secure Preferences" || { echo "[!] Failed to overwrite Secure Preferences"; exit 1; }
 
