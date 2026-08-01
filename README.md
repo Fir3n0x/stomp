@@ -58,7 +58,7 @@ python3 stomp.py EXTENSION_FOLDER/ \
 python3 stomp.py EXTENSION_FOLDER/ \
   --platform darwin \
   --prefs-file SecurePreferences \
-  --device-id "S-1-5-21-XXX-XXX-XXX-XXX" \
+  --device-id "D60DCA2A-C9CE-XXXX-XXXX-XXXXXXXXXXXX" \
   --target-dir "/Users/<user>/Library/Application Support" \
   --browser chrome
 
